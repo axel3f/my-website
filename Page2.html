@@ -1,7 +1,18 @@
 <!DOCTYPE html>
 <html>
-  <h1 style="color=blue">This is smart.</h1>
-  <a href="index.html">Home Page</a>
-  <a href="index.html" download class="btn">Click me if you dare.</a>
+    <h1 style="color=blue">This is smart.</h1>
+    <a href="index.html">Home Page</a>
+  
+    <label for="nameInput">Enter your name:</label>
+    <input type="text" id="nameInput" placeholder="e.g. Jane Doe">
+      <p>Hello, <strong id="displayName">stranger</strong>!</p>
+  
+  <script>
+    const inputBox = document.getElementById('nameInput');
+    const displayArea = document.getElementById('displayName')
+    inputBox.addEventListener('input', function() {
+      displayArea.textContent = inputBox.value || 'stranger';
+    });
+  </script>
   
 </html>
