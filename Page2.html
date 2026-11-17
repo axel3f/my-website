@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html>
     <h1 style="color=blue">This is smart.</h1>
-  
+  <br>
     <label for="nameInput">Enter your name:</label>
-    <input type="text" id="nameInput" placeholder="e.g. Jane Doe">
-      <p>Hello, <strong id="displayName">stranger</strong>!</p>
+    <input type="text" id="nameInput" placeholder="Name Box">
+      <p>Hello, <strong id="displayName">_</strong>!</p>
   
   <script>
     const inputBox = document.getElementById('nameInput');
     const displayArea = document.getElementById('displayName')
     inputBox.addEventListener('input', function() {
-      displayArea.textContent = inputBox.value || 'stranger';
+      displayArea.textContent = inputBox.value || '_';
     });
   </script>
     <br>
