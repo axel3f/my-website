@@ -2,6 +2,210 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <script src="Game1.js" defer></script>
+  <title>Isometric Block Game</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: #eee;
+      font-family: sans-serif;
+      user-select: none;
+    }
+    canvas {
+      /* Scales MakeCode Arcade's 160x120 screen up crisply */
+      width: 640px;
+      height: 480px;
+      image-rendering: pixelated;
+      border: 3px solid #333;
+      background-color: #003fad;
+    }
+    .controls {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #aaa;
+    }
+  </style>
 </head>
+<body>
+
+  <canvas id="screen" width="160" height="120"></canvas>
+  <div class="controls">
+    <strong>Move:</strong> Arrow Keys or WASD &nbsp;|&nbsp;
+    <strong>Button A (Dig):</strong> Z or Space &nbsp;|&nbsp;
+    <strong>Button B (Place):</strong> X or Shift
+  </div>
+
+  <script>
+    const canvas = document.getElementById("screen");
+    const ctx = canvas.getContext("2d");
+
+    // MakeCode Arcade default 16-color palette
+    const PALETTE = {
+      ".": null,
+      "1": "#ffffff", "2": "#ff2121", "3": "#ff93c4", "4": "#ff8135",
+      "5": "#fff609", "6": "#249ca3", "7": "#78dc52", "8": "#003fad",
+      "9": "#87f2ff", "a": "#8e2ec4", "b": "#a4839f", "c": "#5c406c",
+      "d": "#e5cdc4", "e": "#91463d", "f": "#000000"
+    };
+
+    // Pre-renders MakeCode pixel strings into offscreen canvases for fast drawing
+    function createSpriteImage(art) {
+      const rows = art.trim().split("\n").map(r => r.trim().split(/\s+/));
+      const h = rows.length;
+      const w = rows[0].length;
+      const off = document.createElement("canvas");
+      off.width = w;
+      off.height = h;
+      const octx = off.getContext("2d");
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const color = PALETTE[rows[y][x]];
+          if (color) {
+            octx.fillStyle = color;
+            octx.fillRect(x, y, 1, 1);
+          }
+        }
+      }
+      return off;
+    }
+
+    const blockImg = createSpriteImage(`
+      . . . . . . . 7 7 . . . . . . .
+      . . . . . . 7 7 7 7 . . . . . .
+      . . . . . 7 7 7 7 7 7 . . . . .
+      . . . . 7 7 7 7 7 7 7 7 . . . .
+      . . . 7 7 7 7 7 7 7 7 7 7 . . .
+      . . 7 7 7 7 7 7 7 7 7 7 7 7 . .
+      . . d 7 7 7 7 7 7 7 7 7 7 e . .
+      . . d d 7 7 7 7 7 7 7 7 e e . .
+      . . d d d 7 7 7 7 7 7 e e e . .
+      . . d d d d 7 7 7 7 e e e e . .
+      . . d d d d d 7 7 e e e e e . .
+      . . . d d d d d e e e e e . . .
+      . . . . d d d d e e e e . . . .
+      . . . . . d d d e e e . . . . .
+      . . . . . . d d e e . . . . . .
+      . . . . . . . d e . . . . . . .
+    `);
+
+    const emptyBlockImg = createSpriteImage(`
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . 8 8 . . . . . . .
+      . . . . . . . 8 8 . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+    `);
+
+    const playerImg = createSpriteImage(`
+      . . . f f . . .
+      . . . f f . . .
+      . . . f f . . .
+      f f f . . f f f
+      f f f . . f f f
+      . . . f f . . .
+      . . . f f . . .
+      . . . f f . . .
+    `);
+
+    // Build the exact grid from your MakeCode loops
+    const blocks = [];
+    let NumbX = 166;
+    let NumbY = 0;
+
+    for (let i = 0; i < 12; i++) {
+      for (let j = 0; j < 24; j++) {
+        NumbX += -12;
+        blocks.push({ x: NumbX, y: NumbY, kind: "Block", img: blockImg });
+      }
+      NumbX = 172;
+      NumbY += 6;
+      for (let j = 0; j < 24; j++) {
+        NumbX += -12;
+        blocks.push({ x: NumbX, y: NumbY, kind: "Block", img: blockImg });
+      }
+      NumbX = 166;
+      NumbY += 6;
+    }
+
+    // Player starts centered at (80, 60) with speed 50 px/sec
+    const player = { x: 80, y: 60, speed: 50, img: playerImg };
+
+    // Keyboard state tracking
+    const keys = {};
+    window.addEventListener("keydown", e => { keys[e.code] = true; });
+    window.addEventListener("keyup", e => { keys[e.code] = false; });
+
+    function isA() { return keys["KeyZ"] || keys["Space"] || keys["Enter"]; }
+    function isB() { return keys["KeyX"] || keys["ShiftLeft"] || keys["ShiftRight"]; }
+
+    // Bounding-box overlap check (matches MakeCode sprite center coordinates)
+    function overlaps(a, b) {
+      return Math.abs(a.x - b.x) * 2 < (a.img.width + b.img.width) &&
+             Math.abs(a.y - b.y) * 2 < (a.img.height + b.img.height);
+    }
+
+    let lastTime = performance.now();
+
+    function gameLoop(now) {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+
+      // Move player (50 px/sec)
+      let vx = 0, vy = 0;
+      if (keys["ArrowLeft"] || keys["KeyA"]) vx -= 1;
+      if (keys["ArrowRight"] || keys["KeyD"]) vx += 1;
+      if (keys["ArrowUp"] || keys["KeyW"]) vy -= 1;
+      if (keys["ArrowDown"] || keys["KeyS"]) vy += 1;
+
+      player.x = Math.max(4, Math.min(156, player.x + vx * player.speed * dt));
+      player.y = Math.max(4, Math.min(116, player.y + vy * player.speed * dt));
+
+      // Check overlaps with Block and EmptyBlock
+      for (const b of blocks) {
+        if (overlaps(player, b)) {
+          if (b.kind === "Block" && isA()) {
+            b.img = emptyBlockImg;
+            b.kind = "EmptyBlock";
+          } else if (b.kind === "EmptyBlock" && isB()) {
+            b.img = blockImg;
+            b.kind = "Block";
+          }
+        }
+      }
+
+      // Render background (color 8 = #003fad)
+      ctx.fillStyle = "#003fad";
+      ctx.fillRect(0, 0, 160, 120);
+
+      // Render blocks
+      for (const b of blocks) {
+        ctx.drawImage(b.img, Math.round(b.x - b.img.width / 2), Math.round(b.y - b.img.height / 2));
+      }
+
+      // Render player
+      ctx.drawImage(player.img, Math.round(player.x - player.img.width / 2), Math.round(player.y - player.img.height / 2));
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
 </html>
